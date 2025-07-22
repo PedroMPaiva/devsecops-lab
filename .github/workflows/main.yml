@@ -20,14 +20,26 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Run Bandit
+        # We add '|| true' so the step doesn't fail the job immediately
+        # The job will still fail if trivy finds issues later, or we can add a final check
         run: |
           pip install bandit
-          bandit -r . -f json -o bandit-report.json
+          bandit -r . -f json -o bandit-report.json || true
       - name: Upload Bandit report
+        # This step will now always run
         uses: actions/upload-artifact@v4
         with:
           name: bandit-report
           path: bandit-report.json
+      - name: Check for Bandit findings
+        # This step fails the job if the report contains issues
+        run: |
+          if [ -s bandit-report.json ] && [ "$(jq '.results | length' bandit-report.json)" -gt 0 ]; then
+            echo "Bandit found vulnerabilities. Failing the build."
+            exit 1
+          else
+            echo "No Bandit vulnerabilities found."
+          fi
   sca-trivy:
     name: SCA with Trivy
     runs-on: ubuntu-latest
@@ -43,7 +55,20 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
+          # Make trivy exit with 0 so the next step can run
+          exit-code: '0'
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
+      - name: Fail build on critical/high vulnerabilities
+        # This step fails the job if trivy found issues
+        run: |
+          # The trivy action writes the number of vulnerabilities to a file
+          # We check if that number is greater than 0
+          if [ -f "trivy-results.sarif" ] && [ "$(jq '.runs[0].results | length' trivy-results.sarif)" -gt 0 ]; then
+            echo "Trivy found critical or high severity vulnerabilities. Failing the build."
+            exit 1
+          else
+            echo "No critical or high severity vulnerabilities found by Trivy."
+          fi
