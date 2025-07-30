@@ -84,7 +84,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Start Flask application
-        run: python app.py &
+        run: waitress-serve --host=127.0.0.1 --port=5000 app:app &
       - name: Run OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.14.0
         with:
