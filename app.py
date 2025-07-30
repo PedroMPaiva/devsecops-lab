@@ -8,7 +8,7 @@ def hello():
     return "Olá, DevSecOps Lab!"
 
 def add_security_headers(response):
-    response.headers['Content-Security-Policy'] = "default-src 'self'; frame-ancestors 'self';"
+    response.headers['Content-Security-Policy'] = "default-src 'self'; frame-ancestors 'self'; form-action 'self';"
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
