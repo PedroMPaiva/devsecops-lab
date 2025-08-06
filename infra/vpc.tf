@@ -174,21 +174,11 @@ resource "aws_iam_role_policy" "flow_log_policy" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    //tfsec:ignore:aws-iam-no-policy-wildcards
-    Statement = [
-      {
-        Action = [
-          "s3:PutObject",
-          "s3:GetBucketAcl",
-          "s3:GetBucketLocation",
-        ]
-        Effect   = "Allow"
-        Resource = [
+    Resource = [
+          //tfsec:ignore:aws-iam-no-policy-wildcards
           "${aws_s3_bucket.vpc_flow_logs_bucket.arn}/*",
           aws_s3_bucket.vpc_flow_logs_bucket.arn,
         ]
-      },
-    ]
   })
 }
 
