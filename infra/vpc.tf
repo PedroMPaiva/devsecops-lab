@@ -167,6 +167,7 @@ resource "aws_iam_role_policy" "flow_log_policy" {
 
   policy = jsonencode({
     Version = "2012-10-17"
+    //tfsec:ignore:aws-iam-no-policy-wildcards
     Statement = [
       {
         Action = [
@@ -176,7 +177,6 @@ resource "aws_iam_role_policy" "flow_log_policy" {
         ]
         Effect   = "Allow"
         Resource = [
-          //tfsec:ignore:aws-iam-no-policy-wildcards
           "${aws_s3_bucket.vpc_flow_logs_bucket.arn}/*",
           aws_s3_bucket.vpc_flow_logs_bucket.arn,
         ]
