@@ -54,12 +54,26 @@ resource "aws_iam_role_policy_attachment" "eks_node_policy" {
   role = aws_iam_role.eks_node.name
 }
 
+resource "aws_kms_key" "eks_secrets" {
+  description             = "KMS key for EKS secrets encryption"
+  deletion_window_in_days = 7
+}
+
 resource "aws_eks_cluster" "main" {
   name     = "devsecops-cluster"
   role_arn = aws_iam_role.eks_cluster.arn
 
   vpc_config {
-    subnet_ids = aws_subnet.public[*].id
+    subnet_ids              = aws_subnet.private[*].id
+    endpoint_private_access = true
+    endpoint_public_access  = false
+  }
+
+  encryption_config {
+    resources = ["secrets"]
+    provider {
+      key_arn = aws_kms_key.eks_secrets.arn
+    }
   }
 
   depends_on = [
@@ -71,7 +85,7 @@ resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "devsecops-node-group"
   node_role_arn   = aws_iam_role.eks_node.arn
-  subnet_ids      = aws_subnet.public[*].id
+  subnet_ids      = aws_subnet.private[*].id
 
   scaling_config {
     desired_size = 2
