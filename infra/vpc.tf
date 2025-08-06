@@ -61,11 +61,57 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
+resource "aws_kms_key" "s3_flow_logs_key" {
+  description             = "KMS key for S3 VPC Flow Logs bucket encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+}
+
 resource "aws_s3_bucket" "vpc_flow_logs_bucket" {
   bucket = "devsecops-vpc-flow-logs-${aws_vpc.main.id}" # Unique bucket name
 
   tags = {
     Name = "devsecops-vpc-flow-logs-bucket"
+  }
+
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        kms_master_key_id = aws_kms_key.s3_flow_logs_key.arn
+        sse_algorithm     = "aws:kms"
+      }
+    }
+  }
+
+  logging {
+    bucket = aws_s3_bucket.vpc_flow_logs_access_log_bucket.id
+
+    target_prefix = "log/vpc-flow-logs/"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "vpc_flow_logs_bucket_public_access_block" {
+  bucket = aws_s3_bucket.vpc_flow_logs_bucket.id
+
+  block_public_acls   = true
+  ignore_public_acls  = true
+  block_public_policy = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket" "vpc_flow_logs_access_log_bucket" {
+  bucket = "devsecops-vpc-flow-logs-access-logs-${aws_vpc.main.id}" # Unique bucket name
+
+  tags = {
+    Name = "devsecops-vpc-flow-logs-access-log-bucket"
+  }
+
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        sse_algorithm = "AES256"
+      }
+    }
   }
 }
 
@@ -101,6 +147,7 @@ resource "aws_iam_role_policy" "flow_log_policy" {
         ]
         Effect   = "Allow"
         Resource = [
+          //tfsec:ignore:aws-iam-no-policy-wildcards
           "${aws_s3_bucket.vpc_flow_logs_bucket.arn}/*",
           aws_s3_bucket.vpc_flow_logs_bucket.arn,
         ]
