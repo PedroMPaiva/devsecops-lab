@@ -57,6 +57,7 @@ resource "aws_iam_role_policy_attachment" "eks_node_policy" {
 resource "aws_kms_key" "eks_secrets" {
   description             = "KMS key for EKS secrets encryption"
   deletion_window_in_days = 7
+  enable_key_rotation     = true
 }
 
 resource "aws_eks_cluster" "main" {
@@ -75,6 +76,8 @@ resource "aws_eks_cluster" "main" {
       key_arn = aws_kms_key.eks_secrets.arn
     }
   }
+
+  enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 
   depends_on = [
     aws_iam_role_policy_attachment.eks_cluster_policy,

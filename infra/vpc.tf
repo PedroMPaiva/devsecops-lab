@@ -1,4 +1,3 @@
-
 provider "aws" {
   region = "us-east-1"
 }
@@ -60,4 +59,60 @@ resource "aws_route_table_association" "public" {
 
   subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
+}
+
+resource "aws_s3_bucket" "vpc_flow_logs_bucket" {
+  bucket = "devsecops-vpc-flow-logs-${aws_vpc.main.id}" # Unique bucket name
+
+  tags = {
+    Name = "devsecops-vpc-flow-logs-bucket"
+  }
+}
+
+resource "aws_iam_role" "flow_log_role" {
+  name = "devsecops-flow-log-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "vpc-flow-logs.amazonaws.com"
+        }
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "flow_log_policy" {
+  name = "devsecops-flow-log-policy"
+  role = aws_iam_role.flow_log_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "s3:PutObject",
+          "s3:GetBucketAcl",
+          "s3:GetBucketLocation",
+        ]
+        Effect   = "Allow"
+        Resource = [
+          "${aws_s3_bucket.vpc_flow_logs_bucket.arn}/*",
+          aws_s3_bucket.vpc_flow_logs_bucket.arn,
+        ]
+      },
+    ]
+  })
+}
+
+resource "aws_flow_log" "vpc_flow_log" {
+  log_destination      = aws_s3_bucket.vpc_flow_logs_bucket.arn
+  log_destination_type = "s3"
+  traffic_type         = "ALL"
+  vpc_id               = aws_vpc.main.id
+  iam_role_arn         = aws_iam_role.flow_log_role.arn
 }
