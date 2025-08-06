@@ -79,24 +79,13 @@ resource "aws_s3_bucket" "vpc_flow_logs_bucket" {
   tags = {
     Name = "devsecops-vpc-flow-logs-bucket"
   }
+}
 
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        kms_master_key_id = aws_kms_key.s3_flow_logs_key.arn
-        sse_algorithm     = "aws:kms"
-      }
-    }
-  }
+resource "aws_s3_bucket_versioning" "vpc_flow_logs_bucket_versioning" {
+  bucket = aws_s3_bucket.vpc_flow_logs_bucket.id
 
-  logging {
-    bucket = aws_s3_bucket.vpc_flow_logs_access_log_bucket.id
-
-    target_prefix = "log/vpc-flow-logs/"
-  }
-
-  versioning {
-    enabled = true
+  versioning_configuration {
+    status = "Enabled"
   }
 }
 
@@ -109,29 +98,36 @@ resource "aws_s3_bucket_public_access_block" "vpc_flow_logs_bucket_public_access
   restrict_public_buckets = true
 }
 
+resource "aws_s3_bucket_server_side_encryption_configuration" "vpc_flow_logs_bucket_encryption" {
+  bucket = aws_s3_bucket.vpc_flow_logs_bucket.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.s3_flow_logs_key.arn
+      sse_algorithm     = "aws:kms"
+    }
+  }
+}
+
 resource "aws_s3_bucket" "vpc_flow_logs_access_log_bucket" {
   bucket = "devsecops-vpc-flow-logs-access-logs-${aws_vpc.main.id}" # Unique bucket name
 
   tags = {
     Name = "devsecops-vpc-flow-logs-access-log-bucket"
   }
+}
 
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        kms_master_key_id = aws_kms_key.s3_access_logs_key.arn
-        sse_algorithm     = "aws:kms"
-      }
-    }
-  }
+resource "aws_s3_bucket_logging" "vpc_flow_logs_access_log_bucket_logging" {
+  bucket        = aws_s3_bucket.vpc_flow_logs_access_log_bucket.id
+  target_bucket = aws_s3_bucket.vpc_flow_logs_access_log_bucket.id
+  target_prefix = "log/access-logs/"
+}
 
-  versioning {
-    enabled = true
-  }
+resource "aws_s3_bucket_versioning" "vpc_flow_logs_access_log_bucket_versioning" {
+  bucket = aws_s3_bucket.vpc_flow_logs_access_log_bucket.id
 
-  logging {
-    bucket = aws_s3_bucket.vpc_flow_logs_access_log_bucket.id
-    target_prefix = "log/access-logs/"
+  versioning_configuration {
+    status = "Enabled"
   }
 }
 
@@ -142,6 +138,17 @@ resource "aws_s3_bucket_public_access_block" "vpc_flow_logs_access_log_bucket_pu
   ignore_public_acls  = true
   block_public_policy = true
   restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "vpc_flow_logs_access_log_bucket_encryption" {
+  bucket = aws_s3_bucket.vpc_flow_logs_access_log_bucket.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.s3_access_logs_key.arn
+      sse_algorithm     = "aws:kms"
+    }
+  }
 }
 
 resource "aws_iam_role" "flow_log_role" {
