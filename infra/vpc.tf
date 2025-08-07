@@ -16,6 +16,7 @@ resource "aws_subnet" "public" {
   vpc_id     = aws_vpc.main.id
   cidr_block = "10.0.${count.index + 1}.0/24"
   map_public_ip_on_launch = false
+  availability_zone = "us-east-1${element(tolist(["a", "b"]), count.index)}"
 
   tags = {
     Name = "devsecops-public-subnet-${count.index + 1}"
@@ -27,6 +28,7 @@ resource "aws_subnet" "private" {
 
   vpc_id     = aws_vpc.main.id
   cidr_block = "10.0.${count.index + 3}.0/24"
+  availability_zone = "us-east-1${element(tolist(["a", "b"]), count.index)}"
 
   tags = {
     Name = "devsecops-private-subnet-${count.index + 1}"
@@ -183,12 +185,46 @@ resource "aws_iam_role_policy" "flow_log_policy" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Resource = [
-          //tfsec:ignore:aws-iam-no-policy-wildcards
-          "${aws_s3_bucket.vpc_flow_logs_bucket.arn}/*",
-          aws_s3_bucket.vpc_flow_logs_bucket.arn,
+    Statement = [
+      {
+        Action = [
+          "s3:PutObject"
         ]
+        Effect = "Allow"
+        Resource = "${aws_s3_bucket.vpc_flow_logs_bucket.arn}/*"
+        Principal = {
+          Service = "delivery.logs.amazonaws.com"
+        }
+      }
+    ]
   })
+}
+
+resource "aws_s3_bucket_policy" "vpc_flow_logs_bucket_policy" {
+  bucket = aws_s3_bucket.vpc_flow_logs_bucket.id
+  policy = data.aws_iam_policy_document.vpc_flow_logs_bucket_policy.json
+}
+
+data "aws_iam_policy_document" "vpc_flow_logs_bucket_policy" {
+  statement {
+    actions   = ["s3:GetBucketAcl"]
+    resources = [aws_s3_bucket.vpc_flow_logs_bucket.arn]
+
+    principals {
+      type        = "Service"
+      identifiers = ["vpc-flow-logs.amazonaws.com"]
+    }
+  }
+
+  statement {
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.vpc_flow_logs_bucket.arn}/*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["vpc-flow-logs.amazonaws.com"]
+    }
+  }
 }
 
 resource "aws_flow_log" "vpc_flow_log" {
@@ -196,5 +232,4 @@ resource "aws_flow_log" "vpc_flow_log" {
   log_destination_type = "s3"
   traffic_type         = "ALL"
   vpc_id               = aws_vpc.main.id
-  iam_role_arn         = aws_iam_role.flow_log_role.arn
 }
