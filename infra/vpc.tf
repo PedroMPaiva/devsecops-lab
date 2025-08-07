@@ -109,6 +109,15 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "vpc_flow_logs_buc
   }
 }
 
+resource "aws_s3_bucket_logging" "vpc_flow_logs_bucket_logging" {
+  bucket = aws_s3_bucket.vpc_flow_logs_bucket.id
+
+  target_bucket = aws_s3_bucket.vpc_flow_logs_access_log_bucket.id
+  target_prefix = "log/"
+}
+
+
+
 resource "aws_s3_bucket" "vpc_flow_logs_access_log_bucket" {
   bucket = "devsecops-vpc-flow-logs-access-logs-${aws_vpc.main.id}" # Unique bucket name
 

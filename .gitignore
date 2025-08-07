@@ -1,5 +1,5 @@
 venv/
 __pycache__/
 .vscode/
-CLOUD.md
 .terraform/
+CLOUD.md
