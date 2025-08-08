@@ -242,21 +242,28 @@ resource "aws_vpc_endpoint" "ec2" {
 }
 
 resource "aws_security_group" "main" {
-  name        = "devsecops-sg"
-  description = "Allow all inbound traffic"
+  name        = "devsecops-vpc-endpoint-sg"
+  description = "Security group for VPC endpoints. Allows HTTPS traffic from within the VPC."
   vpc_id      = aws_vpc.main.id
 
   ingress {
+    description = "Allow HTTPS from within the VPC for endpoints"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.main.cidr_block]
+  }
+
+  # tfsec:ignore:aws-ec2-no-public-egress-sgr
+  egress {
+    description = "Allow all outbound traffic for endpoints to connect to AWS services"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+  tags = {
+    Name = "devsecops-vpc-endpoint-sg"
   }
 }
