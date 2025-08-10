@@ -56,8 +56,8 @@
          provider: 'aws'
          command: 'init'
          workingDirectory: '$(System.DefaultWorkingDirectory)/infra'
-         backendServiceAWS: 'NOME_DA_SUA_AWS_SERVICE_CONNECTION' # <-- MUITO IMPORTANTE
-         backendAWSBucketName: 'seu-bucket-tfstate' # <-- MUDE PARA SEU BUCKET
+         backendServiceAWS: 'aws-azure-connection' # <-- MUITO IMPORTANTE
+         backendAWSBucketName: 'devsecops-lab-tfstate-pedrompaiva'
          backendAWSKey: 'terraform.tfstate'
 
      - task: TerraformTaskV4@4
@@ -66,5 +66,5 @@
          provider: 'aws'
          command: 'apply'
          workingDirectory: '$(System.DefaultWorkingDirectory)/infra'
-         environmentServiceNameAWS: 'NOME_DA_SUA_AWS_SERVICE_CONNECTION' # <-- MUITO IMPORTANTE
+         environmentServiceNameAWS: 'aws-azure-connection' # <-- MUITO IMPORTANTE
          commandOptions: '-auto-approve'
