@@ -1,0 +1,70 @@
+ # azure-pipelines.yml
+
+ trigger:
+ - main
+
+ pool:
+   vmImage: 'ubuntu-latest'
+
+ stages:
+ - stage: Build
+   displayName: 'Build & Scan Stage'
+   jobs:
+   - job: SecurityScan
+     displayName: 'Run SAST and DAST Scans'
+     steps:
+     - task: UsePythonVersion@0
+       displayName: 'Set up Python 3.10'
+       inputs:
+         versionSpec: '3.10'
+
+     - script: |
+         python -m pip install --upgrade pip
+         pip install -r requirements.txt
+       displayName: 'Install dependencies'
+
+     - script: |
+         bandit -r . -f txt -o bandit-report.txt
+       displayName: 'Run SAST scan with Bandit'
+       continueOnError: true # Continua mesmo se encontrar vulnerabilidades para rodar o DAST
+
+     - script: |
+         export FLASK_APP=app.py
+         flask run &
+         sleep 15 # Aguarda o servidor iniciar
+         # Assumindo que zap.sh está na raiz do seu repositório
+         ./zap.sh -t http://127.0.0.1:5000 -r zap-report.html
+       displayName: 'Run DAST scan with OWASP ZAP'
+       continueOnError: true
+
+ - stage: Deploy
+   displayName: 'Deploy to AWS Stage'
+   dependsOn: Build # Só roda se o estágio de Build for bem-sucedido
+   jobs:
+   - job: TerraformDeploy
+     displayName: 'Deploy Infra with Terraform'
+     steps:
+     - task: TerraformInstaller@1
+       displayName: 'Install Terraform'
+       inputs:
+         terraformVersion: 'latest'
+
+     # AQUI VOCÊ PRECISA CONFIGURAR A SERVICE CONNECTION
+     - task: TerraformTaskV4@4
+       displayName: 'Terraform Init'
+       inputs:
+         provider: 'aws'
+         command: 'init'
+         workingDirectory: '$(System.DefaultWorkingDirectory)/infra'
+         backendServiceAWS: 'NOME_DA_SUA_AWS_SERVICE_CONNECTION' # <-- MUITO IMPORTANTE
+         backendAWSBucketName: 'seu-bucket-tfstate' # <-- MUDE PARA SEU BUCKET
+         backendAWSKey: 'terraform.tfstate'
+
+     - task: TerraformTaskV4@4
+       displayName: 'Terraform Apply'
+       inputs:
+         provider: 'aws'
+         command: 'apply'
+         workingDirectory: '$(System.DefaultWorkingDirectory)/infra'
+         environmentServiceNameAWS: 'NOME_DA_SUA_AWS_SERVICE_CONNECTION' # <-- MUITO IMPORTANTE
+         commandOptions: '-auto-approve'
